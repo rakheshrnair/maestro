@@ -28,17 +28,16 @@ import au.com.cba.omnia.maestro.core.codec.Encode
 object EncodeMacro {
   def impl[A <: ThriftStruct: c.WeakTypeTag](c: Context): c.Expr[Encode[A]] = {
     import c.universe._
-    Inspect.ensureThriftType[A](c) 
+    Inspect.ensureThriftType[A](c)
 
     val typ       = weakTypeOf[A]
-    val companion = typ.typeSymbol.companion
-    val members   = Inspect.methods[A](c)
+    val allFields = Inspect.allFields[A](c)
 
     def encode(xs: List[MethodSymbol]): List[Tree] = xs.map { x =>
-      q"Encode.encode[${x.returnType}](none, a.${x})"
+      q"Encode.encode[${x.returnType}](none, a.${x.getter})"
     }
 
-    val fields = q"""List(..${encode(members)}).flatten"""
+    val fields = q"""List(..${encode(allFields)}).flatten"""
 
     val r = q"""
        import au.com.cba.omnia.maestro.core.codec.Encode
