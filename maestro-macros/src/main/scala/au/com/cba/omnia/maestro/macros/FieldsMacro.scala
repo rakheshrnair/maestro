@@ -30,28 +30,21 @@ object FieldsMacro {
     import c.universe._
 
     val typ        = c.universe.weakTypeOf[A]
-    val entries    = Inspect.fields[A](c)
+    val entries    = Inspect.info[A](c)
     val companion  = typ.typeSymbol.companion
     val nameGetter = TermName("name")
-    val idGetter   = TermName("id")
     
-    val fields = entries.map({
-      case (method, field) =>
-        val term    = q"""$companion.${TermName(field + "Field")}"""
-        val srcName = q"""$term.$nameGetter"""
-        val srcId   = q"""$term.$idGetter"""
-
-        val get     = q"""au.com.cba.omnia.maestro.core.data.Accessor[${method.returnType}]($srcId)"""
-        val fld     = q"""au.com.cba.omnia.maestro.core.data.Field[$typ, ${method.returnType}]($srcName,$get)"""
+    val fields = entries.map { case (i, name, method) =>
+      val field   = name.capitalize
+      val srcName = q"""$companion.${TermName(field + "Field")}.$nameGetter"""
+      val get     = q"""au.com.cba.omnia.maestro.core.data.Accessor[${method.returnType}]($i)"""
+      val fld     = q"""au.com.cba.omnia.maestro.core.data.Field[$typ, ${method.returnType}]($srcName, $get)"""
         
-        q"""val ${TermName(field)} = $fld"""
-    })
-    val refs = entries.map({
-      case (method, field) =>
-        val n = TermName(field)
-        q"$n"
-    })
-    val r =q"class FieldsWrapper { ..$fields; def AllFields = List(..$refs) }; new FieldsWrapper {}"
+      q"""val ${TermName(field)} = $fld"""
+    }
+
+    val refs = entries.map { case (_, field, _) => q"${TermName(field.capitalize)}" }
+    val r    =q"class FieldsWrapper { ..$fields; def AllFields = List(..$refs) }; new FieldsWrapper {}"
     c.Expr(r)
   }
 }

@@ -32,7 +32,7 @@ object EncodeMacro {
 
     val typ       = weakTypeOf[A]
     val companion = typ.typeSymbol.companion
-    val members   = Inspect.methods[A](c)
+    val members   = Inspect.info[A](c).map(_._3)
 
     def encode(xs: List[MethodSymbol]): List[Tree] = xs.map { x =>
       q"Encode.encode[${x.returnType}](none, a.${x})"

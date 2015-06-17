@@ -32,10 +32,10 @@ object DecodeMacro {
     val typ        = c.universe.weakTypeOf[A]
     val stringType = weakTypeOf[String]
     val typeName   = typ.toString
-    val members    = Inspect.indexed[A](c)
+    val members    = Inspect.info[A](c).map { case (i, _, f) => (i, f) }
     val size       = members.length
 
-    def decodeUnknownSource(xs: List[(MethodSymbol, Int)]) = q"""
+    def decodeUnknownSource(xs: List[(Int, MethodSymbol)]) = q"""
       if (source.length < $size) {
         DecodeError[(List[String], Int, $typ)](source, position, NotEnoughInput($size, $typeName))
       } else {
@@ -55,7 +55,7 @@ object DecodeMacro {
       }
     """
 
-    def decodeUnknowns(xs: List[(MethodSymbol, Int)]): List[Tree] = xs.map { case (x, i) =>
+    def decodeUnknowns(xs: List[(Int, MethodSymbol)]): List[Tree] = xs.map { case (i, x) =>
       val index  = i - 1
 
       MacroUtils.optional(c)(x.returnType).map { param =>

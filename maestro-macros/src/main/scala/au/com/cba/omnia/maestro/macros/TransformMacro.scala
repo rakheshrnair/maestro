@@ -43,12 +43,12 @@ object TransformMacro {
   ): c.Expr[Transform[A, B]] = {
     import c.universe.{Symbol => _, _}
 
-    val srcType       = c.universe.weakTypeOf[A]
-    val dstType       = c.universe.weakTypeOf[B]
-    val srcFieldsInfo = Inspect.fields[A](c).map { case (f, n) => (WordUtils.uncapitalize(n), f) }.toMap
-    val dstFields     = Inspect.fields[B](c).map { case (f, n)  => (f, WordUtils.uncapitalize(n)) }
-    val expectedTypes = dstFields.map { case (f, n) => (n, f.returnType) }.toMap
-    val in            = TermName(c.freshName)
+    val srcType   = c.universe.weakTypeOf[A]
+    val dstType   = c.universe.weakTypeOf[B]
+    val srcFields = Inspect.fieldsMap[A](c)
+    val dstFields = Inspect.fieldsMap[B](c)
+
+    val in        = TermName(c.freshName)
 
     /** Fail compilation with nice error message. */
     def abort(msg: String) =
@@ -65,12 +65,12 @@ object TransformMacro {
           val name  = cons.value.toString
           val field = TermName(name)
 
-          expectedTypes.get(name) match {
+          dstFields.get(name) match {
             case None  => s"$name is not a member of $dstType.".left
-            case Some(tpe) => {
+            case Some(x) => {
               try {
-                c.typecheck(q"$f: ($srcType => $tpe)")
-                  (name, q"$f.apply($in)").right
+                c.typecheck(q"$f: ($srcType => ${x.returnType})")
+                (name, q"$f.apply($in)").right
               } catch {
                 case TypecheckException(posn, msg) => s"Invalid type for transforming '$name: $msg.".left
               }
@@ -82,8 +82,8 @@ object TransformMacro {
     }
 
     /** Create code to copy fields with the same names from A to B.*/
-    def copyTransform(method: MethodSymbol, name: String): Result[(String, c.Tree)] = {
-      srcFieldsInfo.get(name) match {
+    def copyTransform(name: String, method: MethodSymbol): Result[(String, c.Tree)] = {
+      srcFields.get(name) match {
         case Some(src) if src.returnType == method.returnType =>
           (name, q"$in.${TermName(name)}").right
         case Some(src) =>
@@ -93,25 +93,30 @@ object TransformMacro {
       }
     }
 
+    // Parses the manual transformation rules
     val (invalidManuals, manuals) =
       transformations
         .map(t => parseTransform(t))
         .toList
         .separate
 
-    val manualDsts = manuals.map(_._1).toSet
+    val manualDsts: Set[String] = manuals.map(_._1).toSet
+
+    // Creates simple copy operations for any fields in the dst type that don't have a manual rule.
     val (invalidDefaults, defaults)   =
       dstFields
-        .filter(f => !manualDsts.contains(f._2))
-        .map(f => copyTransform(f._1, f._2))
+        .filterKeys(n => !manualDsts.contains(n))
+        .toList
+        .map { case (n, f) => copyTransform(n, f) }
         .separate
 
+    // Checks that the manual rules don't try and transform the same field multiple times.
     val multipleTransforms = manuals.groupBy(_._1).toList.filter(_._2.length != 1).map(_._1)
     if (!multipleTransforms.isEmpty) {
       abort(s"""Can't transform ${multipleTransforms.mkString(",")} multiple times.""")
     }
 
-    // Deal with any errors around the manual transformation rules
+    // Deal with any errors around the transformation rules
     val invalids = invalidManuals ++ invalidDefaults
     if (!invalids.isEmpty) {
       abort(invalids.mkString("\n"))

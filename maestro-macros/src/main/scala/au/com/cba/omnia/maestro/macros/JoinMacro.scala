@@ -63,7 +63,7 @@ object JoinMacro {
       c.abort(c.enclosingPosition, msg)
 
     def thriftType(typ: Type): ThriftType =
-      ThriftType(typ, Inspect.fieldsUnsafe(c)(typ).map { case (method, name) =>
+      ThriftType(typ, Inspect.infoUnsafe(c)(typ).map { case (_, name, method) =>
         ThriftField(TermName(WordUtils.uncapitalize(name)), method.typeSignatureIn(typ))
       })
 
