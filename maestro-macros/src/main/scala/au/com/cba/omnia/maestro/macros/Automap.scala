@@ -114,21 +114,7 @@ object automap {
 
     /** Enumerate the fields on a struct. */
     def getFields(t: Type): List[Field] =
-      if (isHumbug(t)) humbugFields(t)
-      else             scroogeFields(t.typeSymbol.companion.typeSignature)
-
-    /** Enumerate the fields on a humbug struct. */
-    def humbugFields(t: Type): List[Field] =
-      methods(t)
-        .filter(_.isGetter)
-        .map(m => (m.returnType.typeSymbol.name.toTypeName, m.name.toTermName))
-
-    /** Enumerate the fields on a scrooge struct. */
-    def scroogeFields(t: Type): List[Field] =
-      methods(t.member(TypeName("Immutable")).asType.toType) // Scrooge's native representation
-       .filter(_.isGetter)
-       .filter(_.name.toTermName.toString.charAt(0) != '_') // Ignore meta fields
-       .map(m => (m.returnType.typeSymbol.name.toTypeName, m.name.toTermName))
+      Inspect.infoUnsafe(c)(t).map { case (_, name, method) => (method.returnType.typeSymbol.name.toTypeName, TermName(name)) }
 
     /** Get the list of user-defined field mappings. */
     def getOverrides(xs: List[Tree]): Map[TermName, Tree] =
