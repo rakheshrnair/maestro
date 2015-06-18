@@ -154,7 +154,7 @@ trait UploadExecution {
     loadController: LoadController, ctlDBConfig: DBConfig
   ): Execution[UploadInfo] = for {
     result <- UploadEx.matcher(config).flatMap(UploadEx.uploader(config, _))
-    Execution.fromResult(loadController.logLoadRunStep(run, "UploadStep", n, "Upload complete").run(ctlDBConfig))
+    Execution.fromResult(loadController.logLoadRunStep(run, "UploadStep", result.files.size, "Upload complete").run(ctlDBConfig))
   } yield result
 
   /**
