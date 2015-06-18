@@ -43,6 +43,9 @@ import com.twitter.scrooge.{ThriftStruct, ThriftStructCodec}
 
 import au.com.cba.omnia.omnitool.Result
 
+import au.com.cba.omnia.answer.DBConfig
+import au.com.cba.omnia.etl.controller.LoadController
+
 import au.com.cba.omnia.maestro.core.codec._
 import au.com.cba.omnia.maestro.core.clean.Clean
 import au.com.cba.omnia.maestro.core.filter.RowFilter
@@ -181,6 +184,21 @@ trait LoadExecution {
   ): Execution[(TypedPipe[A], LoadInfo)] = {
     LoadEx.execution[A](config, sources)
   }
+
+  def loadWithLogging[A <: ThriftStruct : Decode : Tag : ClassTag](
+    config: LoadConfig[A], sources: List[String],
+    loadController: LoadController, ctlDBConfig: DBConfig
+  ): Execution[(TypedPipe[A], LoadInfo)] = for {
+    (pipe, loadInfo) <- LoadEx.execution[A](config, sources)
+    loadInfo match {
+      case EmptyLoad =>
+        Execution.fromResult(loadController.logLoadRunStep(run, "LoadStep", 0, "Load Empty").run(ctlDBConfig))
+      case LoadFailure(_, _, written, _) =>
+        Execution.fromResult(loadController.logLoadRunStep(run, "LoadStep", written, "Load Failure").run(ctlDBConfig))
+      case LoadSuccess(_, _, written, _) =>
+        Execution.fromResult(loadController.logLoadRunStep(run, "LoadStep", written, "Load Success").run(ctlDBConfig))
+    }
+  } yield (pipe, loadInfo)
 }
 
 /**
