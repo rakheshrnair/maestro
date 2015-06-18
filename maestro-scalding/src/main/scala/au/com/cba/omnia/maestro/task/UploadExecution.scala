@@ -26,6 +26,9 @@ import com.twitter.scalding._
 
 import au.com.cba.omnia.omnitool.Result
 
+import au.com.cba.omnia.answer.DBConfig
+import au.com.cba.omnia.etl.controller.LoadController
+
 import au.com.cba.omnia.maestro.core.upload._
 import au.com.cba.omnia.maestro.scalding.ConfHelper
 import au.com.cba.omnia.maestro.scalding.ExecutionOps._
@@ -146,6 +149,13 @@ trait UploadExecution {
     */
   def upload(config: UploadConfig): Execution[UploadInfo] =
     UploadEx.matcher(config).flatMap(UploadEx.uploader(config, _))
+
+  def uploadWithLogging(config: UploadConfig,
+    loadController: LoadController, ctlDBConfig: DBConfig
+  ): Execution[UploadInfo] = for {
+    result <- UploadEx.matcher(config).flatMap(UploadEx.uploader(config, _))
+    Execution.fromResult(loadController.logLoadRunStep(run, "UploadStep", n, "Upload complete").run(ctlDBConfig))
+  } yield result
 
   /**
     * Attempt to parse the first line of the file into a header data type.
