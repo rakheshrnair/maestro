@@ -34,6 +34,9 @@ import com.twitter.scalding._
 
 import com.cba.omnia.edge.source.compressible.CompressibleTypedTsv
 
+import au.com.cba.omnia.answer.DBConfig
+import au.com.cba.omnia.etl.controller.LoadController
+
 import au.com.cba.omnia.parlour.SqoopSyntax.{ParlourExportDsl, ParlourImportDsl}
 import au.com.cba.omnia.parlour.{SqoopExecution => ParlourExecution, ParlourExportOptions, ParlourImportOptions, ParlourOptions}
 
@@ -199,11 +202,28 @@ trait SqoopExecution {
   ): Execution[(String, Long)] =
     SqoopEx.importExecution(config)
 
+  def sqoopImportWithLogging[T <: ParlourImportOptions[T]](
+    config: SqoopImportConfig[T],
+    loadController: LoadController, ctlDBConfig: DBConfig
+  ): Execution[(String, Long)] = for {
+    (path, count) <- SqoopEx.importExecution(config)
+    Execution.fromResult(loadController.logLoadRunStep(run, "SqoopImportStep", count, "Sqoop import complete").run(ctlDBConfig))
+  } yield (path, count)
+
   /** Exports data from HDFS to a DB via Sqoop. */
   def sqoopExport[T <: ParlourExportOptions[T]](
     config: SqoopExportConfig[T], exportDir: String
   ): Execution[Unit] =
     SqoopEx.exportExecution(config.copy(options = config.options.exportDir(exportDir)))
+
+  /** Exports data from HDFS to a DB via Sqoop. */
+  def sqoopExportWithLogging[T <: ParlourExportOptions[T]](
+    config: SqoopExportConfig[T], exportDir: String,
+    loadController: LoadController, ctlDBConfig: DBConfig
+  ): Execution[Unit] = for {
+    _ <- sqoopExport(config, exportDir)
+    _ <- Execution.fromResult(loadController.logLoadRunStep(run, "SqoopExportStep", 0, "Sqoop export complete").run(ctlDBConfig))
+  } yield ()
 
   /** Exports data from a TypedPipe to a DB via Sqoop.
     *
@@ -225,6 +245,19 @@ trait SqoopExecution {
         _   <- Execution.fromHdfs{ Hdfs.delete(dir, true) }
       } yield ()
   }
+
+  /** Exports data from a TypedPipe to a DB via Sqoop.
+    *
+    * The provided TypedPipe is flushed to a temporary location on-disk before writing.
+    */
+  def sqoopExportWithLogging[T <: ParlourExportOptions[T]](
+    config: SqoopExportConfig[T],
+    pipe:   TypedPipe[A],
+    loadController: LoadController, ctlDBConfig: DBConfig
+  ): Execution[Unit] = for {
+    _ <- sqoopExport(config, pipe)
+    _ <- Execution.fromResult(loadController.logLoadRunStep(run, "SqoopExportStep", 0, "Sqoop export complete").run(ctlDBConfig))
+  } yield ()
 }
 
 /** Methods to support testing Sqoop execution */
