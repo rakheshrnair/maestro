@@ -35,7 +35,7 @@ import com.twitter.scalding._
 import com.cba.omnia.edge.source.compressible.CompressibleTypedTsv
 
 import au.com.cba.omnia.answer.DBConfig
-import au.com.cba.omnia.etl.controller.LoadController
+import au.com.cba.omnia.etl.controller.{LoadController, LoadRun}
 
 import au.com.cba.omnia.parlour.SqoopSyntax.{ParlourExportDsl, ParlourImportDsl}
 import au.com.cba.omnia.parlour.{SqoopExecution => ParlourExecution, ParlourExportOptions, ParlourImportOptions, ParlourOptions}
@@ -203,7 +203,7 @@ trait SqoopExecution {
     SqoopEx.importExecution(config)
 
   def sqoopImportWithLogging[T <: ParlourImportOptions[T]](
-    config: SqoopImportConfig[T],
+    config: SqoopImportConfig[T], run: LoadRun,
     loadController: LoadController, ctlDBConfig: DBConfig
   ): Execution[(String, Long)] = for {
     (path, count) <- SqoopEx.importExecution(config)
@@ -218,7 +218,7 @@ trait SqoopExecution {
 
   /** Exports data from HDFS to a DB via Sqoop. */
   def sqoopExportWithLogging[T <: ParlourExportOptions[T]](
-    config: SqoopExportConfig[T], exportDir: String,
+    config: SqoopExportConfig[T], exportDir: String, run: LoadRun,
     loadController: LoadController, ctlDBConfig: DBConfig
   ): Execution[Unit] = for {
     _ <- sqoopExport(config, exportDir)
@@ -252,7 +252,7 @@ trait SqoopExecution {
     */
   def sqoopExportWithLogging[T <: ParlourExportOptions[T]](
     config: SqoopExportConfig[T],
-    pipe:   TypedPipe[A],
+    pipe:   TypedPipe[A], run: LoadRun,
     loadController: LoadController, ctlDBConfig: DBConfig
   ): Execution[Unit] = for {
     _ <- sqoopExport(config, pipe)

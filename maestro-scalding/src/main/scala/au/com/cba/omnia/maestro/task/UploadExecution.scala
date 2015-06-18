@@ -27,7 +27,7 @@ import com.twitter.scalding._
 import au.com.cba.omnia.omnitool.Result
 
 import au.com.cba.omnia.answer.DBConfig
-import au.com.cba.omnia.etl.controller.LoadController
+import au.com.cba.omnia.etl.controller.{LoadController, LoadRun}
 
 import au.com.cba.omnia.maestro.core.upload._
 import au.com.cba.omnia.maestro.scalding.ConfHelper
@@ -150,7 +150,7 @@ trait UploadExecution {
   def upload(config: UploadConfig): Execution[UploadInfo] =
     UploadEx.matcher(config).flatMap(UploadEx.uploader(config, _))
 
-  def uploadWithLogging(config: UploadConfig,
+  def uploadWithLogging(config: UploadConfig, run: LoadRun,
     loadController: LoadController, ctlDBConfig: DBConfig
   ): Execution[UploadInfo] = for {
     result <- UploadEx.matcher(config).flatMap(UploadEx.uploader(config, _))

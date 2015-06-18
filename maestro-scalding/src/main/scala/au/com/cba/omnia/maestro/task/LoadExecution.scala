@@ -44,7 +44,7 @@ import com.twitter.scrooge.{ThriftStruct, ThriftStructCodec}
 import au.com.cba.omnia.omnitool.Result
 
 import au.com.cba.omnia.answer.DBConfig
-import au.com.cba.omnia.etl.controller.LoadController
+import au.com.cba.omnia.etl.controller.{LoadController, LoadRun}
 
 import au.com.cba.omnia.maestro.core.codec._
 import au.com.cba.omnia.maestro.core.clean.Clean
@@ -186,7 +186,7 @@ trait LoadExecution {
   }
 
   def loadWithLogging[A <: ThriftStruct : Decode : Tag : ClassTag](
-    config: LoadConfig[A], sources: List[String],
+    config: LoadConfig[A], sources: List[String],run: LoadRun,
     loadController: LoadController, ctlDBConfig: DBConfig
   ): Execution[(TypedPipe[A], LoadInfo)] = for {
     (pipe, loadInfo) <- LoadEx.execution[A](config, sources)

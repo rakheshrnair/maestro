@@ -19,7 +19,7 @@ import com.twitter.scalding.{Execution, TupleSetter, TypedPipe}
 import com.twitter.scrooge.ThriftStruct
 
 import au.com.cba.omnia.answer.DBConfig
-import au.com.cba.omnia.etl.controller.LoadController
+import au.com.cba.omnia.etl.controller.{LoadController, LoadRun}
 
 import au.com.cba.omnia.ebenezer.scrooge.PartitionParquetScroogeSource
 import au.com.cba.omnia.ebenezer.scrooge.hive.Hive
@@ -85,7 +85,7 @@ trait ViewExecution {
     */
   def viewHiveWithLogging[A <: ThriftStruct : Manifest, ST](
     table: HiveTable[A, ST], pipe: TypedPipe[A], append: Boolean = true,
-    loadController: LoadController, ctlDBConfig: DBConfig
+    run: LoadRun, loadController: LoadController, ctlDBConfig: DBConfig
   ): Execution[Long] = for {
     n <- viewHive(table, pipe, append)
     Execution.fromResult(loadController.logLoadRunStep(run, "ViewHiveStep", n, "Hive load complete").run(ctlDBConfig))
