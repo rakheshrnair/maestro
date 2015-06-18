@@ -18,6 +18,9 @@ import com.twitter.scalding.{Execution, TupleSetter, TypedPipe}
 
 import com.twitter.scrooge.ThriftStruct
 
+import au.com.cba.omnia.answer.DBConfig
+import au.com.cba.omnia.etl.controller.LoadController
+
 import au.com.cba.omnia.ebenezer.scrooge.PartitionParquetScroogeSource
 import au.com.cba.omnia.ebenezer.scrooge.hive.Hive
 
@@ -70,5 +73,21 @@ trait ViewExecution {
      */
     _ <- Execution.fromHive(Hive.createDatabase(table.database))
     n <- table.writeExecution(pipe, append).map(_.get(StatKeys.tuplesWritten).getOrElse(0L))
+  } yield n
+
+  /**
+    * Writes out the data to a hive table, with logging to a control table.
+    *
+    * This will create the table if it doesn't already exist. If the existing schema doesn't match
+    * the schema expected the job will fail.
+    *
+    * @return the number of rows written.
+    */
+  def viewHiveWithLogging[A <: ThriftStruct : Manifest, ST](
+    table: HiveTable[A, ST], pipe: TypedPipe[A], append: Boolean = true,
+    loadController: LoadController, ctlDBConfig: DBConfig
+  ): Execution[Long] = for {
+    n <- viewHive(table, pipe, append)
+    Execution.fromResult(loadController.logLoadRunStep(run, "ViewHiveStep", n, "Hive load complete").run(ctlDBConfig))
   } yield n
 }
